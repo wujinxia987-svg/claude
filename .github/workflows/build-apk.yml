@@ -14,12 +14,19 @@ jobs:
       - name: Extract project ZIP
         run: |
           rm -rf project
-          mkdir project
+          mkdir -p project
           unzip -q personal_ai_client_v1.0_GitHub_APK_build.zip -d project
 
       - name: Find project root
+        shell: bash
         run: |
-          PROJECT_ROOT=$(dirname "$(find project -name capacitor.config.json -type f -print -quit)")
+          PROJECT_ROOT="$(dirname "$(find project -name capacitor.config.json -type f -print -quit)")"
+
+          if [ -z "$PROJECT_ROOT" ] || [ "$PROJECT_ROOT" = "." ]; then
+            echo "ERROR: capacitor.config.json was not found."
+            exit 1
+          fi
+
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
           echo "Project root: $PROJECT_ROOT"
 
@@ -43,68 +50,91 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Install npm dependencies
+        shell: bash
         run: |
           cd "$PROJECT_ROOT"
           npm install
 
       - name: Build web app
+        shell: bash
         run: |
           cd "$PROJECT_ROOT"
           npm run build
 
       - name: Sync Capacitor
+        shell: bash
         run: |
           cd "$PROJECT_ROOT"
           npx cap sync android
 
-      - name: Fix Capacitor Android plugins
+      - name: Register Capacitor Android plugins
+        shell: bash
         run: |
           cd "$PROJECT_ROOT/android"
 
-          echo "===== Checking Capacitor plugins ====="
+          LOCAL_NOTIFICATIONS_DIR="../node_modules/@capacitor/local-notifications/android"
+          PREFERENCES_DIR="../node_modules/@capacitor/preferences/android"
 
-          test -d ../node_modules/@capacitor/local-notifications/android
-          test -d ../node_modules/@capacitor/preferences/android
+          echo "Checking plugin directories..."
 
-          echo "Local Notifications plugin found."
-          echo "Preferences plugin found."
-
-          echo "===== Registering Capacitor plugins ====="
-
-          if ! grep -q "include ':capacitor-local-notifications'" settings.gradle; then
-            cat >> settings.gradle <<'EOF'
-
-include ':capacitor-local-notifications'
-project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
-EOF
+          if [ ! -d "$LOCAL_NOTIFICATIONS_DIR" ]; then
+            echo "ERROR: Local Notifications Android plugin not found."
+            exit 1
           fi
 
-          if ! grep -q "include ':capacitor-preferences'" settings.gradle; then
-            cat >> settings.gradle <<'EOF'
+          if [ ! -d "$PREFERENCES_DIR" ]; then
+            echo "ERROR: Preferences Android plugin not found."
+            exit 1
+          fi
 
-include ':capacitor-preferences'
-project(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')
-EOF
+          echo "Registering Local Notifications..."
+
+          if ! grep -qF "include ':capacitor-local-notifications'" settings.gradle; then
+            printf '%s\n' \
+              "" \
+              "include ':capacitor-local-notifications'" \
+              "project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')" \
+              >> settings.gradle
+          fi
+
+          echo "Registering Preferences..."
+
+          if ! grep -qF "include ':capacitor-preferences'" settings.gradle; then
+            printf '%s\n' \
+              "" \
+              "include ':capacitor-preferences'" \
+              "project(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')" \
+              >> settings.gradle
           fi
 
           echo "===== settings.gradle ====="
           cat settings.gradle
 
+          echo "===== capacitor.build.gradle ====="
+          if [ -f app/capacitor.build.gradle ]; then
+            cat app/capacitor.build.gradle
+          fi
+
       - name: Build APK
+        shell: bash
         run: |
           cd "$PROJECT_ROOT/android"
-          gradle assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       - name: Prepare APK
+        shell: bash
         run: |
-          APK_PATH=$(find project -path "*/android/app/build/outputs/apk/debug/*.apk" -type f -print -quit)
+          APK_PATH="$(find "$PROJECT_ROOT/android/app/build/outputs/apk/debug" -type f -name "*.apk" -print -quit)"
 
           echo "Found APK: $APK_PATH"
 
-          test -n "$APK_PATH"
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: APK was not generated."
+            exit 1
+          fi
 
-          mkdir -p artifact
-          cp "$APK_PATH" artifact/app-debug.apk
+          mkdir -p "$GITHUB_WORKSPACE/artifact"
+          cp "$APK_PATH" "$GITHUB_WORKSPACE/artifact/app-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
