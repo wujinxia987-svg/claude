@@ -61,28 +61,13 @@ jobs:
         run: |
           cd "$PROJECT_ROOT/android"
 
-          if ! grep -q "capacitor-local-notifications" settings.gradle; then
-            printf "\ninclude ':capacitor-local-notifications'\nproject(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')\n" >> settings.gradle
-          fi
+          echo "===== Checking Capacitor plugins ====="
 
-          if ! grep -q "implementation project(':capacitor-local-notifications')" app/build.gradle; then
-            printf "\n    implementation project(':capacitor-local-notifications')\n" >> app/build.gradle
-          fi
-
-          if ! grep -q "capacitor-preferences" settings.gradle; then
-            printf "\ninclude ':capacitor-preferences'\nproject(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')\n" >> settings.gradle
-          fi
-
-          if ! grep -q "implementation project(':capacitor-preferences')" app/build.gradle; then
-            printf "\n    implementation project(':capacitor-preferences')\n" >> app/build.gradle
-          fi
-
-          echo "===== settings.gradle ====="
-          cat settings.gradle
-
-          echo "===== Checking plugins ====="
           test -d ../node_modules/@capacitor/local-notifications/android
           test -d ../node_modules/@capacitor/preferences/android
+
+          echo "Local Notifications plugin found."
+          echo "Preferences plugin found."
 
       - name: Build APK
         run: |
@@ -92,8 +77,11 @@ jobs:
       - name: Prepare APK
         run: |
           APK_PATH=$(find project -path "*/android/app/build/outputs/apk/debug/*.apk" -type f -print -quit)
+
           echo "Found APK: $APK_PATH"
+
           test -n "$APK_PATH"
+
           mkdir -p artifact
           cp "$APK_PATH" artifact/app-debug.apk
 
