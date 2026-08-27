@@ -37,11 +37,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -61,6 +56,28 @@ jobs:
         run: |
           cd "$PROJECT_ROOT"
           npx cap sync android
+
+      - name: Fix Capacitor Android plugins
+        run: |
+          cd "$PROJECT_ROOT/android"
+
+          if ! grep -q "capacitor-local-notifications" settings.gradle; then
+            cat >> settings.gradle <<'EOF'
+
+          include ':capacitor-local-notifications'
+          project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
+          EOF
+          fi
+
+          if ! grep -q "capacitor-local-notifications" app/build.gradle; then
+            sed -i "/implementation project(':capacitor-cordova-android-plugins')/a\\    implementation project(':capacitor-local-notifications')" app/build.gradle
+          fi
+
+          echo "===== settings.gradle ====="
+          cat settings.gradle
+
+          echo "===== local notifications module ====="
+          ls -la ../node_modules/@capacitor/local-notifications/android
 
       - name: Build APK
         run: |
