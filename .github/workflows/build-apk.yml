@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           cd "$PROJECT_ROOT/android"
-          ./gradlew assembleDebug --no-daemon
+          gradle assembleDebug --no-daemon
 
       - name: Prepare APK
         shell: bash
