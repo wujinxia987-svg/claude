@@ -61,23 +61,38 @@ jobs:
         run: |
           cd "$PROJECT_ROOT/android"
 
+          # Fix local notifications
           if ! grep -q "capacitor-local-notifications" settings.gradle; then
             cat >> settings.gradle <<'EOF'
 
-          include ':capacitor-local-notifications'
-          project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
-          EOF
+include ':capacitor-local-notifications'
+project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
+EOF
           fi
 
-          if ! grep -q "capacitor-local-notifications" app/build.gradle; then
+          if ! grep -q "implementation project(':capacitor-local-notifications')" app/build.gradle; then
             sed -i "/implementation project(':capacitor-cordova-android-plugins')/a\\    implementation project(':capacitor-local-notifications')" app/build.gradle
           fi
 
-          echo "===== settings.gradle ====="
-          cat settings.gradle
+          # Fix preferences
+          if ! grep -q "capacitor-preferences" settings.gradle; then
+            cat >> settings.gradle <<'EOF'
 
-          echo "===== local notifications module ====="
+include ':capacitor-preferences'
+project(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')
+EOF
+          fi
+
+          if ! grep -q "implementation project(':capacitor-preferences')" app/build.gradle; then
+            sed -i "/implementation project(':capacitor-cordova-android-plugins')/a\\    implementation project(':capacitor-preferences')" app/build.gradle
+          fi
+
+          echo "===== Checking Capacitor plugins ====="
+          grep -n "capacitor-" settings.gradle || true
+
+          echo "===== Checking node_modules ====="
           ls -la ../node_modules/@capacitor/local-notifications/android
+          ls -la ../node_modules/@capacitor/preferences/android
 
       - name: Build APK
         run: |
