@@ -22,7 +22,6 @@ jobs:
           PROJECT_ROOT=$(dirname "$(find project -name capacitor.config.json -type f -print -quit)")
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
           echo "Project root: $PROJECT_ROOT"
-          ls -la "$PROJECT_ROOT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,10 +33,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
 
       - name: Install npm dependencies
         run: |
@@ -54,19 +62,10 @@ jobs:
           cd "$PROJECT_ROOT"
           npx cap sync android
 
-      - name: Check Android project
-        run: |
-          cd "$PROJECT_ROOT/android"
-          echo "Android project:"
-          pwd
-          ls -la
-          test -f gradlew
-
       - name: Build APK
         run: |
           cd "$PROJECT_ROOT/android"
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
