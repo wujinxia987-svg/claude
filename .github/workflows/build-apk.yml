@@ -89,10 +89,11 @@ jobs:
           cd "$PROJECT_ROOT/android"
           gradle assembleDebug --no-daemon
 
-           - name: Prepare APK
+      - name: Prepare APK
         run: |
           APK_PATH=$(find project -path "*/android/app/build/outputs/apk/debug/*.apk" -type f -print -quit)
           echo "Found APK: $APK_PATH"
+          test -n "$APK_PATH"
           mkdir -p artifact
           cp "$APK_PATH" artifact/app-debug.apk
 
