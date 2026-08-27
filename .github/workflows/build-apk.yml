@@ -13,8 +13,16 @@ jobs:
 
       - name: Extract project ZIP
         run: |
+          rm -rf project
           mkdir project
           unzip -q personal_ai_client_v1.0_GitHub_APK_build.zip -d project
+
+      - name: Find project root
+        run: |
+          PROJECT_ROOT=$(dirname "$(find project -name capacitor.config.json -type f -print -quit)")
+          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+          echo "Project root: $PROJECT_ROOT"
+          ls -la "$PROJECT_ROOT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,20 +40,31 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install npm dependencies
-        working-directory: project
-        run: npm install
+        run: |
+          cd "$PROJECT_ROOT"
+          npm install
 
       - name: Build web app
-        working-directory: project
-        run: npm run build
+        run: |
+          cd "$PROJECT_ROOT"
+          npm run build
 
       - name: Sync Capacitor
-        working-directory: project
-        run: npx cap sync android
+        run: |
+          cd "$PROJECT_ROOT"
+          npx cap sync android
+
+      - name: Check Android project
+        run: |
+          cd "$PROJECT_ROOT/android"
+          echo "Android project:"
+          pwd
+          ls -la
+          test -f gradlew
 
       - name: Build APK
-        working-directory: project/android
         run: |
+          cd "$PROJECT_ROOT/android"
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
@@ -53,5 +72,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: personal-ai-client-debug-apk
-          path: project/android/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_ROOT }}/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
