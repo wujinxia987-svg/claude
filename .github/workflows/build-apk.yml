@@ -69,6 +69,27 @@ jobs:
           echo "Local Notifications plugin found."
           echo "Preferences plugin found."
 
+          echo "===== Registering Capacitor plugins ====="
+
+          if ! grep -q "include ':capacitor-local-notifications'" settings.gradle; then
+            cat >> settings.gradle <<'EOF'
+
+include ':capacitor-local-notifications'
+project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
+EOF
+          fi
+
+          if ! grep -q "include ':capacitor-preferences'" settings.gradle; then
+            cat >> settings.gradle <<'EOF'
+
+include ':capacitor-preferences'
+project(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')
+EOF
+          fi
+
+          echo "===== settings.gradle ====="
+          cat settings.gradle
+
       - name: Build APK
         run: |
           cd "$PROJECT_ROOT/android"
